@@ -150,180 +150,229 @@
         integrity="sha512-vc58qvvBdrDR4etbxMdlTt4GBQk1qjvyORR2nrsPsFPyrs+/u5c3+1Ct6upOgdZoIl7eq6k3a1UPDSNAQi/32A=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
+        <script>
+            var dataSource = {
+                datasets: [
+                    {
+                        data: [],
+                        backgroundColor: [
+                            '#FF00F4',
+                            '#FF9E00',
+                            '#C3A068',
+                            '#A7C368',
+                            '#68C393',
+                            '#00D8FF',
+                            '#AE00FF',
+    
+                        ],
+                    }
+                ],
+                labels: []
+            };
+             
+            console.log("Data source created");
+            console.log(dataSource);
+    
+            function createChart() {
+    
+                var ctx = document.getElementById("myChart").getContext("2d");
+    
+                if (window.myPieChart) {
+                    window.myPieChart.destroy(); // Destroy the previous chart
+                }  
+    
+    
+                window.myPieChart = new Chart(ctx,  {
+                    type:'pie',
+                    data:dataSource,
+                    options: {
+            responsive: false, // Disable responsiveness
+            maintainAspectRatio: false, // Disable aspect ratio 
+                    },
+                });
+            }
+    
+            function getBudget()  {
+                axios.get('http://localhost:3000/budget')
+                .then(function(res) {
+                    console.log(res.data);
+                    for (var i=0;i<res.data.myBudget.length; i++)
+                    {
+                        dataSource.datasets[0].data[i]=res.data.myBudget[i].budget;
+                        dataSource.labels[i]=res.data.myBudget[i].title;
+                    } 
+                })
+                    .then(function () {
+                    createChart();
+                });
+            }
+            getBudget();
+            
+        
+        
+        </script>
+    
     <script>
-        let myPieChart;
-
-        const dataSource = {
-            labels: [],
-            datasets: [
-                {
-                    label: "My First Dataset",
-                    data: [],
-                    backgroundColor: [
-                        "rgb(255, 99, 132)",
-                        "rgb(54, 162, 235)",
-                        "rgb(255, 205, 86)",
-                        "rgb(75, 192, 192)",
-                        "rgb(153, 102, 255)",
-                        "rgb(255, 159, 64)",
-                        "rgb(201, 203, 207)",
-                        "rgb(0, 204, 102)",
-                    ],
-                    hoverOffset: 4,
-                },
-            ],
-        };
-
-        function createChart() {
-            const ctx = document.getElementById("myPieChart");
-            myPieChart = new Chart(ctx, {
-                type: "pie",
-                data: dataSource,
-            });
+    
+        console.log("D3JS file linked properly");
+        var datum = [];
+    
+    
+        function getBudgetAgain() {
+            axios.get('http://localhost:3000/budget')
+                .then(function (res) {
+                    datum = res.data.myBudget;
+                    console.log(datum);
+                })
+                .then(function () {
+                    createD3Chart();
+                });
         }
-
-        function createD3Chart(data) {
-            // Clear the container before appending new elements
-            d3.select("#d3ChartContainer").selectAll("*").remove();
-
-            // Calculate the dynamic margin based on the longest label
-            const maxLabelLength = Math.max(...data.map(d => d.label.length));
-            const margin = maxLabelLength * 5; // Adjust multiplier as needed for your font size and layout
-
-            // Set the width, height, and radius based on the dynamic margin
-            const width = 400;
-            const height = 400;
-            const radius = Math.min(width, height) / 2 - margin;
-
-            const svg = d3
-                .select("#d3ChartContainer")
+        window.addEventListener("DOMContentLoaded", function () {
+            getBudgetAgain();
+        });
+    
+        function createD3Chart() {
+            console.log("D3JS chart created");
+    
+            var svg = d3.select("#d3DonutChart")
                 .append("svg")
-                .attr("width", width + margin * 2)
-                .attr("height", height + margin * 2)
-                .append("g")
-                .attr("transform", `translate(${(width + margin) / 2}, ${(height + margin) / 2})`);
-
-            const pie = d3.pie().value((d) => d.value);
-
-            const arc = d3
-                .arc()
-                .outerRadius(radius * 0.8)
+                .append("g");
+    
+            svg.append("g")
+                .attr("class", "slices");
+            svg.append("g")
+                .attr("class", "labels");
+            svg.append("g")
+                .attr("class", "lines");
+    
+    
+    
+            var chartContainer = document.getElementById("d3DonutChart");
+            var containerWidth = chartContainer.clientWidth;
+            var containerHeight = chartContainer.clientHeight;
+    
+            var width = containerWidth,
+                height = containerHeight,
+                radius = (Math.min(width, height) / 2) - 65;
+    
+            console.log("Data before pie function" + datum);
+    
+            var pie = d3.layout.pie()
+                .sort(null)
+                .value(function (d) {
+                    return d.budget;
+                });
+    
+            var arc = d3.svg.arc()
+                .outerRadius(radius * 1.0)
                 .innerRadius(radius * 0.4);
-
-            const outerArc = d3
-                .arc()
-                .innerRadius(radius * 0.9)
-                .outerRadius(radius * 0.9);
-
-            const color = d3.scaleOrdinal()
-                .range([
-                    "#98abc5",
-                    "#8a89a6",
-                    "#7b6888",
-                    "#6b486b",
-                    "#a05d56",
-                    "#d0743c",
-                    "#ff8c00",
-                    "#66c2a5",
-                    "#fc8d62",
-                    "#8da0cb",
-                    "#e78ac3",
-                ]);
-
-            // Draw the pie slices
-            const slice = svg
-                .selectAll("path.slice")
-                .data(pie(data))
-                .enter()
-                .append("path")
-                .attr("class", "slice")
-                .attr("d", arc)
-                .style("fill", (d) => color(d.data.label))
-                .on("mouseover", function (event, d) {
-                    d3.select(this)
-                        .transition()
-                        .duration(200)
-                        .attr("d", d3.arc()
-                            .outerRadius(radius * 0.85) // Expand on hover
-                            .innerRadius(radius * 0.4));
-                })
-                .on("mouseout", function (event, d) {
-                    d3.select(this)
-                        .transition()
-                        .duration(200)
-                        .attr("d", arc); // Reset to original arc
-                });
-
-            // Add polylines connecting slices to labels
-            svg
-                .selectAll("polyline")
-                .data(pie(data))
-                .enter()
-                .append("polyline")
-                .attr("stroke", "black")
-                .attr("stroke-width", 2)
-                .attr("fill", "none")
-                .attr("opacity", 0.3)
-                .attr("points", function (d) {
-                    const posA = arc.centroid(d); // Slice center
-                    const posB = outerArc.centroid(d); // Point on the outer arc
-                    const posC = outerArc.centroid(d); // Point where text will be
-
-                    posC[0] = radius * 1.05 * (midAngle(d) < Math.PI ? 1 : -1); // Adjust text position further to avoid overlap
-                    return [posA, posB, posC];
-                });
-
-            // Add text labels
-            svg
-                .selectAll("text")
-                .data(pie(data))
-                .enter()
-                .append("text")
-                .attr("dy", ".35em")
-                .text((d) => d.data.label)
-                .attr("transform", (d) => {
-                    const pos = outerArc.centroid(d);
-                    pos[0] = radius * 1.1 * (midAngle(d) < Math.PI ? 1 : -1); // Move text further out
-                    return `translate(${pos})`;
-                })
-                .style("text-anchor", (d) => (midAngle(d) < Math.PI ? "start" : "end"));
-
-            function midAngle(d) {
-                return d.startAngle + (d.endAngle - d.startAngle) / 2;
+    
+            var outerArc = d3.svg.arc()
+                .innerRadius(radius * 1.0)
+                .outerRadius(radius * 0.6);
+    
+            svg.attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+    
+            var key = function (d) { return d.data.title; };
+    
+    
+            var color = d3.scale.category20();
+    
+            change(datum);
+    
+            function change(data) {
+                console.log("Data after pie function" + data);
+                var slice = svg.select(".slices").selectAll("path.slice")
+                    .data(pie(data), key);
+    
+                slice.enter()
+                    .insert("path")
+                    .style("fill", function (d) { return color(d.data.title); })
+                    .attr("class", "slice");
+    
+                slice
+                    .transition().duration(1000)
+                    .attrTween("d", function (d) {
+                        this._current = this._current || d;
+                        var interpolate = d3.interpolate(this._current, d);
+                        this._current = interpolate(0);
+                        return function (t) {
+                            return arc(interpolate(t));
+                        };
+                    });
+    
+                slice.exit()
+                    .remove();
+    
+                
+    
+                var text = svg.select(".labels").selectAll("text")
+                    .data(pie(data), key);
+    
+                text.enter()
+                    .append("text")
+                    .attr("dy", ".35em")
+                    .text(function (d) {
+                        return d.data.title;
+                    });
+    
+                function midAngle(d) {
+                    return d.startAngle + (d.endAngle - d.startAngle) / 2;
+                }
+    
+                text.transition().duration(1000)
+                    .attrTween("transform", function (d) {
+                        this._current = this._current || d;
+                        var interpolate = d3.interpolate(this._current, d);
+                        this._current = interpolate(0);
+                        return function (t) {
+                            var d2 = interpolate(t);
+                            var pos = outerArc.centroid(d2);
+                            pos[0] = radius * (midAngle(d2) < Math.PI ? 1 : -1);
+                            return "translate(" + pos + ")";
+                        };
+                    })
+                    .styleTween("text-anchor", function (d) {
+                        this._current = this._current || d;
+                        var interpolate = d3.interpolate(this._current, d);
+                        this._current = interpolate(0);
+                        return function (t) {
+                            var d2 = interpolate(t);
+                            return midAngle(d2) < Math.PI ? "start" : "end";
+                        };
+                    });
+    
+                text.exit()
+                    .remove();
+    
+              
+    
+                var polyline = svg.select(".lines").selectAll("polyline")
+                    .data(pie(data), key);
+    
+                polyline.enter()
+                    .append("polyline");
+    
+                polyline.transition().duration(1000)
+                    .attrTween("points", function (d) {
+                        this._current = this._current || d;
+                        var interpolate = d3.interpolate(this._current, d);
+                        this._current = interpolate(0);
+                        return function (t) {
+                            var d2 = interpolate(t);
+                            var pos = outerArc.centroid(d2);
+                            pos[0] = radius * 1 * (midAngle(d2) < Math.PI ? 1 : -1);
+                            return [arc.centroid(d2), outerArc.centroid(d2), pos];
+                        };
+                    });
+    
+                polyline.exit()
+                    .remove();
             }
         }
-
-
-
-        function getBudget() {
-            axios.get("/budget").then(function (res) {
-                console.log(res.data);
-
-                const budgetData = res.data.myBudget;
-
-                for (let i = 0; i < res.data.myBudget.length; i++) {
-                    dataSource.labels.push(res.data.myBudget[i].title);
-                    dataSource.datasets[0].data.push(res.data.myBudget[i].budget);
-                }
-                if (myPieChart) {
-                    myPieChart.update();
-                } else {
-                    createChart();
-                }
-
-                const d3Data = budgetData.map(function (item) {
-                    return { label: item.title, value: item.budget };
-                });
-
-                // Create or update the D3.js chart
-                createD3Chart(d3Data);
-            }).catch(function (error) {
-                console.error('Error loading data:', error);
-            });
-        }
-        getBudget();
-
-
+    
+    
     </script>
 </body>
 
