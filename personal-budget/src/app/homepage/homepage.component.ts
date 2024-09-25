@@ -109,7 +109,7 @@ export class HomepageComponent implements OnInit {
 
   createChart() {
     const ctx = <HTMLCanvasElement>document.getElementById('myChart');
-    var myPieChart = new Chart(ctx, {
+    const myPieChart = new Chart(ctx, {
       type: 'pie',
       data: this.dataSource,
     });
