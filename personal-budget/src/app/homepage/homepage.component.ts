@@ -66,15 +66,15 @@ export class HomepageComponent implements OnInit {
       ]);
   }
   private createSvg(): void {
-    // Make sure the SVG is large enough to hold the pie chart and labels
-    this.width = 800; // Increased width
-    this.height = 500; // Increased height
-    this.radius = Math.min(this.width, this.height) / 2 - 50; // Adjust radius for padding
+    this.width = 800; // Total width of the SVG
+    this.height = 500; // Total height of the SVG
+    this.radius = Math.min(this.width, this.height) / 2 * 0.9; // Adjusted to use 90% of half the smallest dimension
 
     this.svg = d3.select('#pie-chart')
       .append('svg')
       .attr('width', this.width)
       .attr('height', this.height)
+      .attr('viewBox', `0 0 ${this.width} ${this.height}`) // Ensures responsive scaling
       .append('g')
       .attr('transform', `translate(${this.width / 2}, ${this.height / 2})`);
   }
@@ -131,12 +131,15 @@ export class HomepageComponent implements OnInit {
       return d.startAngle + (d.endAngle - d.startAngle) / 2;
     }
   }
-
   createChart() {
     const ctx = <HTMLCanvasElement>document.getElementById('myChart');
     const myPieChart = new Chart(ctx, {
       type: 'pie',
       data: this.dataSource,
+      options: {
+        responsive: true,      // Ensure the chart is responsive
+        maintainAspectRatio: false // This prevents the chart from distorting
+      }
     });
   }
 
