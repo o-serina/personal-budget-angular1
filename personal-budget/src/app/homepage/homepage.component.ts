@@ -6,6 +6,13 @@ import Chart from 'chart.js/auto';
 
 import * as d3 from 'd3';
 
+interface DataItem {
+  title: string;
+  budget: number;
+}
+
+interface PieArcDatum extends d3.PieArcDatum<DataItem> {}
+
 @Component({
   selector: 'pb-homepage',
   templateUrl: './homepage.component.html',
@@ -39,24 +46,8 @@ export class HomepageComponent implements OnInit {
   // The radius of the pie chart is half the smallest side
   private radius = Math.min(this.width, this.height) / 2;
   private colors: any;
-  private pie: any;
-  private titles: string[] = [];
 
   constructor(private dataService: DataService) {}
-
-  private createSvg(): void {
-    this.svg = d3
-      .select('#pie-chart')
-      .append('svg')
-      .attr('width', this.width)
-      .attr('height', this.height)
-      .append('g')
-      .attr(
-        'transform',
-        'translate(' + this.width / 2 + ',' + this.height / 2 + ')'
-      );
-  }
-
   private createColors(): void {
     const titles = this.dataSource.labels;
 
@@ -74,37 +65,71 @@ export class HomepageComponent implements OnInit {
         '#CA8AFD',
       ]);
   }
+  private createSvg(): void {
+    // Make sure the SVG is large enough to hold the pie chart and labels
+    this.width = 800; // Increased width
+    this.height = 500; // Increased height
+    this.radius = Math.min(this.width, this.height) / 2 - 50; // Adjust radius for padding
+
+    this.svg = d3.select('#pie-chart')
+      .append('svg')
+      .attr('width', this.width)
+      .attr('height', this.height)
+      .append('g')
+      .attr('transform', `translate(${this.width / 2}, ${this.height / 2})`);
+  }
 
   private drawChart(): void {
-    // Compute the position of each group on the pie:
-    const pie = d3.pie<any>().value((d: any) => Number(d.budget));
+    const pie = d3.pie<DataItem>().value((d: DataItem) => d.budget);
+    const arc = d3.arc<PieArcDatum>().innerRadius(0).outerRadius(this.radius);
 
-    // Build the pie chart
-    this.svg
-      .selectAll('pieces')
+    // Draw arcs
+    this.svg.selectAll('path')
       .data(pie(this.newDataSource))
       .enter()
       .append('path')
-      .attr('d', d3.arc().innerRadius(0).outerRadius(this.radius))
+      .attr('d', arc)
       .attr('fill', (d: any, i: any) => this.colors(i))
-      .attr('stroke', '#121926')
-      .style('stroke-width', '1px');
+      .attr('stroke', 'white')
+      .style('stroke-width', '2px');
+
+    // Define outer arc for polyline and labels
+    const outerArc = d3.arc<PieArcDatum>().innerRadius(this.radius * 0.9).outerRadius(this.radius * 0.9);
+
+    // Add polylines
+    this.svg.selectAll('polyline')
+      .data(pie(this.newDataSource))
+      .enter()
+      .append('polyline')
+      .attr('points', (d: PieArcDatum) => {
+        const posA = arc.centroid(d); // line insertion in the slice
+        const posB = outerArc.centroid(d); // label position
+        const posC = outerArc.centroid(d); // a little further for label
+        posC[0] = this.radius * 0.95 * (midAngle(d) < Math.PI ? 1 : -1);
+        return [posA, posB, posC];
+      })
+      .style('fill', 'none')
+      .attr('stroke', 'black')
+      .style('stroke-width', 1);
 
     // Add labels
-    const labelLocation = d3.arc().innerRadius(100).outerRadius(this.radius);
-
-    this.svg
-      .selectAll('pieces')
+    this.svg.selectAll('text')
       .data(pie(this.newDataSource))
       .enter()
       .append('text')
-      .text((d: any) => d.data.title)
-      .attr(
-        'transform',
-        (d: any) => 'translate(' + labelLocation.centroid(d) + ')'
-      )
-      .style('text-anchor', 'middle')
-      .style('font-size', 15);
+      .text((d: { data: { title: any; }; }) => d.data.title)
+      .attr('transform', (d: PieArcDatum) => {
+        const pos = outerArc.centroid(d);
+        pos[0] = this.radius * (midAngle(d) < Math.PI ? 1 : -1);
+        return `translate(${pos})`;
+      })
+      .style('text-anchor', (d: PieArcDatum) => midAngle(d) < Math.PI ? 'start' : 'end')
+      .style('font-size', '12px');
+
+    // Calculate middle angle to decide label alignment
+    function midAngle(d: PieArcDatum): number {
+      return d.startAngle + (d.endAngle - d.startAngle) / 2;
+    }
   }
 
   createChart() {
